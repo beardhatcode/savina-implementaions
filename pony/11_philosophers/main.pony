@@ -1,36 +1,46 @@
 use "time" 
 use "random" 
 use "collections" 
-primitive Eating 
+
+primitive Eating
 primitive Thinking
+type PhilosopherState is (Eating | Thinking)
+
+class iso Stick
+  let _id:USize val
+
+  new create(id':USize)=> _id =  id'
+  fun box id():USize => _id
+  fun box eq(that: Stick box): Bool => this._id == that._id
 
 
 actor Table
   let _env: Env val
-  let _sticks: Array[Bool] ref
+  let _sticks: Array[(Stick iso|None)] ref
 
   new create(env: Env, num: USize) =>
-    _sticks = Array[Bool].init(true,num)
+    _sticks = Array[(Stick iso|None)]()
+    for i in Range(0,num) do
+      _sticks.push(recover Stick(i) end)
+    end
     _env = env
 
 
 
-  be takeStick(num: USize, who:Philosopher,number:USize) =>
-
+  be takeStick(num: USize, who:Philosopher,number:USize)=>
     try
-      if _sticks(num)? == true then
-        _sticks.update(num,false)?
-        who.stick(num,true)
-        return
-      end
+      who.stick(num, _sticks.update(num,None)?)
+    else
+      who.stick(num, None.create())
     end
-    who.stick(num,false)
+    false
 
-  be realeaseStick(num: USize,who:Philosopher) =>
+  be realeaseStick(stick:(Stick iso | None), x:Philosopher) =>
     try
-      if _sticks(num)? == false then
-        _sticks.update(num,true)?
+      match (consume stick)
+      | let s:Stick iso => _sticks.update(s.id(),consume s)?
       end
+      
     end
 
   
@@ -38,10 +48,11 @@ actor Table
 
 
 actor Philosopher
-  var state: Bool val = true
+  var state: PhilosopherState val = Thinking
   let _env: Env val
   let _sticks:(USize,USize)
-  var _sticksOwn:(Bool,Bool)
+  var _sticksOwn1:(Stick iso|None)
+  var _sticksOwn2:(Stick iso|None)
   var _sticksPending:(Bool,Bool)
   let _table:Table tag
   let number:USize val
@@ -50,50 +61,56 @@ actor Philosopher
   new create(number': USize, env: Env, table: Table tag, left_stick:USize, right_stick:USize) =>
     number = number'
     _sticks = (left_stick,right_stick)
-    _sticksOwn = (false,false)
+    _sticksOwn1 = None.create()
+    _sticksOwn2 = None.create()
     _sticksPending = (false,false)
     _table = table
     _env = env
 
   fun ref eat() =>
-    state = true
+    state = Eating
     _env.out.print("@EATING " + number.string())
     let l:Philosopher tag = this 
 
     let timers = Timers
     let timer = Timer(recover iso object is TimerNotify 
-          fun ref apply(timer: Timer ref, count: U64 val) : Bool val=> state = false; l.returnSticks(); false
+          fun ref apply(timer: Timer ref, count: U64 val) : Bool val=> state = Thinking; l.returnSticks(); false
           fun ref cancel( timer: Timer ref) => None.create()
           end end
-        , rand.next()/36893487000, 0)
+        , rand.next()/3689348700, 0)
     timers(consume timer)
 
 
-  be stick(num:USize, have:Bool) =>
+  be stick(num:USize, s: (Stick iso|None)) =>
   if ((_sticksPending._1 == false) and (_sticksPending._2 == false)) then return end
-    if _sticks._1 == num then
-      _sticksPending = (false,_sticksPending._2)
-      _sticksOwn = (have,_sticksOwn._2)
+    match (consume s)
+    | let x:Stick => 
+        if (x.id() == _sticks._1) then
+          _sticksOwn1 = consume x;_sticksPending = (false,_sticksPending._2)
+        elseif x.id() == _sticks._2 then
+          _sticksOwn2 =consume x;_sticksPending = (_sticksPending._1, false)
+        end
+    | None => _sticksPending = (if num == _sticks._1 then false else _sticksPending._1 end, if num == _sticks._2 then false else _sticksPending._2 end)
     end
-    if _sticks._2 == num then
-      _sticksPending = (_sticksPending._1, false)
-      _sticksOwn = (_sticksOwn._1,have) 
-    end
-    // Something has changed
-    _env.out.print("Stick got "+number.string()+"  "+have.string()+" ("+_sticksOwn._1.string()+_sticksOwn._2.string()+")")
-    if (_sticksOwn._1 and _sticksOwn._2) then
-      this.eat()
+
+    recover
+    match _sticksOwn1
+    | None => this.returnSticks()
     else
-      if ((_sticksPending._1 == false) and (_sticksPending._2 == false)) then
-        this.returnSticks()
+      match _sticksOwn2
+      |   None => this.returnSticks()
+      else
+          eat()
       end
+    end
     end
 
   be returnSticks() =>
+    if ((_sticksPending._1) or (_sticksPending._2)) then return end
     _env.out.print("return sticks "+number.string())
-    var oldOwn = _sticksOwn = (false,false)
-    if oldOwn._1 then _table.realeaseStick(_sticks._1,this) end
-    if oldOwn._2 then _table.realeaseStick(_sticks._2,this) end
+    let s1 = _sticksOwn1 = None.create(); _table.realeaseStick(consume s1, this)
+    let s2 = _sticksOwn2 = None.create(); _table.realeaseStick(consume s2, this)
+
     this()
 
   be requestSticks()=>
@@ -112,7 +129,7 @@ actor Philosopher
             false
           fun ref cancel( timer: Timer ref) => None.create()
           end end
-        , rand.next()/36893487000, 0)
+        , rand.next()/3689348700, 0)
     timers(consume timer)
 
 
@@ -120,9 +137,9 @@ actor Philosopher
 
 actor Main
   new create(env: Env) =>
-
+    let number  = USize(20)
     env.out.print("Let's eat2!")
-    let table = Table(env,100)
-    for i in Range(0, 100) do
-      Philosopher(i,env, table, i, (i+1) % 100)()
+    let table = Table(env,number)
+    for i in Range(0, number) do
+      Philosopher(i,env, table, i, (i+1) % number)()
     end
