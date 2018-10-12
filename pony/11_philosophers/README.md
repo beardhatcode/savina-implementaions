@@ -1,3 +1,40 @@
+# Pony
+
+Pony is one of the languages that provides "fearless concurrency".
+The way this is done in Pony is trough capabilities.
+
+We'll start with a brief introduction to capabilities, starting with reference capabilities.
+These state in which way you can use a reference to a piece of memory (that is a variable). 
+
+1. `iso` = *Isolate*. (RW, no aliased, can be passed)
+  If you have an `iso` variable, this means that you are certain that there is no other reference to that piece of memory.
+  It is safe to read, and write to this variable. You can even pass it to an other actor by `consume`ing it.
+1. `trn` = *Transition*. (RW, can have R aliases, cannot be passed)
+  A `trn` variable is designed to create a read only variable. 
+  Having one allows you to make edits to its contents and allows you to create read only variants of it (`box`es).
+  These read-only variants can't be passed to other actors but may come in handy when constructing your read only data.
+  For example when you are creating a `val` data structure with cyclic references.
+  A `trn` can be converted to a `val` by `consume`ing it. <!-- TRUE?-->
+1. `box` = *Box*. (R, can have R and RW aliases, cannot be passed)
+  This box should be thought of as a transparent one with a XXXX <!-- gleuf -->.
+  You can read its (internal public) data but you cannot alter its state trough function calls.
+  You can still send messages to it if it is an actor
+1. `val` = *Value*. (R, can have R aliases, can be passed)
+  A `val` reference to data implies that all references to that data are read-only.
+  You can safely use the data without worrying about concurrency problems.
+1. `tag` = *Tag*. (only allows sending of messages)
+
+
+of you have a `val` variable. 
+
+# First attempt: bare bone actors
+
+To get some feeling with pony we wil start out without fancy promices.
+We'll use plain messages.
+
+
+
+
 Result of
 
     cat /tmp/a | grep '^@' | sort -k2,2 -t' ' -n | uniq -c
