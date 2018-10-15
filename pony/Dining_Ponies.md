@@ -9,6 +9,8 @@ The dining philosophers problem in Pony. [Wikipedia](https://en.wikipedia.org/wi
 >
 > The problem is how to design a discipline of behaviour (a concurrent algorithm) such that no philosopher will starve; i.e., each can forever continue to alternate between eating and thinking, assuming that no philosopher can know when  others may want to eat or think. 
 
+You can find the file with the pony implementation on my [GitHub](https://github.com/beardhatcode/savina-implementations/blob/master/pony/11_philosophers/main.pony)
+
 # Actors based solution
 
 Since Pony is an actors based programming language we take on this problem in the default actor way. 
