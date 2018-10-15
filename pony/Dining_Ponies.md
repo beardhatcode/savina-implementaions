@@ -13,7 +13,7 @@ You can find the file with the pony implementation on my [GitHub](https://github
 
 # Actors based solution
 
-Since Pony is an actors based programming language we take on this problem in the default actor way. 
+Since Pony is an actors-based programming language, we take on this problem in the default actor way. 
 
 When a philosopher wants to start eating, they request both sticks form the table (which is also and actor). Eating can only commence when both sticks are acquired. If the philosopher fails to acquire a stick, they go on to think a bit longer and try again later.
 
@@ -58,7 +58,7 @@ actor Table
       _sticks.push( Stick(i) )
     end
 ```
-There are two messages the table actor accepts: `takeStick` and `realeaseStick`. They are both implemented as a behaviour in Pony. These behaviours are not the same as behaviours in other actor based languages.
+There are two messages the table actor accepts: `takeStick` and `realeaseStick`. They are both implemented as a behaviour in Pony. These behaviours are different from the notion of behaviours in other actor based languages in which they are used as a synchronisation mechanism.
 
 For the first behaviour, we get a request for a certain stick and who to give it to. Because the sticks in our array are `iso` we cannot just take a stick with `_sticks(num)` and send it back to the philosopher as this would create a new alias. To solve this we perform a destructive read, using `update`. The return type of `Array.update` is a `(Stick iso|None)^`. This is an ephemeral type, which means that there are no aliases to the returned value. This means we can send it back to the philosopher.
 
@@ -69,7 +69,7 @@ For the first behaviour, we get a request for a certain stick and who to give it
     end
 ```
 
-When a stick is returned, it is sent with a `realeaseStick` call. We take that stick and use match to verify if we got a stick. Take not of how we use `consume` in the match. By doing this we do not create an extra alias to the stick. Our initial `stick` is consumed and placed in `s`.Since `s` is an `iso` we can call the `box` method `s.id()` to get the id of the stick such that we can put it back in the array at the right place. When placing the stick in the array we consume the stick `s` again.
+When a stick is returned, it is sent with a `realeaseStick` call. We take that stick and use match to verify if we got a stick. Take not of how we use `consume` in the match. By doing this we do not create an extra alias to the stick. Our initial `stick` is consumed and placed in `s`. Since `s` is an `iso` we can call the `box` method `s.id()` to get the id of the stick such that we can put it back in the array at the right place. To place the stick in the array we need to consume the stick `s` again.
 
 ```pony
   be realeaseStick(stick:(Stick iso | None)) =>
@@ -107,7 +107,7 @@ The `apply` behaviour, which is called at the start of the program, waits a rand
     this.doDelayed({(l:Philosopher tag) => l.requestSticks(); None })
 ```
 
-This is done by simply sending a `takeStick` request to the table. After requesting sticks we must wait for a `stick` message as response form the table. To keep track of which sticks we do not have an answer for we set `_sticksPending` to `true` for both sticks.
+This is carried out by simply sending a `takeStick` request to the table. After requesting sticks we must wait for a `stick` message as response form the table. To keep track of which sticks we do not have an answer for we set `_sticksPending` to `true` for both sticks.
 
 ```pony
   be requestSticks()=>
@@ -117,7 +117,7 @@ This is done by simply sending a `takeStick` request to the table. After request
     _table.takeStick(_sticks._2,this)
 ```
 
-When `stick` messages arrive, we store the `Stick` or `None` in `_sticksOwn1` and `_sticksOwn2`. We update `_sticksPending`. If have gotten a response for all sticks, we validate that we have both sticks. If one of the sticks is missing we return all sticks we have. In the fortunate case that we have both sticks, we eat.
+When `stick` messages arrive, we store the `Stick` or `None` in `_sticksOwn1` and `_sticksOwn2`. We update `_sticksPending`. If have got a response for all sticks, we validate that we have both sticks. If one of the sticks is missing, we return all sticks we have. In the fortunate case that we have both sticks, we eat.
 
 ```pony
   be stick(num:USize, s: (Stick|None)) =>
@@ -158,7 +158,7 @@ Eating is simple. We print that we are eating and return the sticks after some t
     this.doDelayed({(l:Philosopher tag) => l.returnSticks(); None } iso)
 ```
 
-When the sticks are returned we set our state to `Thinking` and send back the sticks to the table. Since we mustn't create aliases to our `Sticks` we first use a destructive read to get the `iso` in a local variable we can consume. Once the sticks are sent we can go back to our `apply()`.
+When the sticks are returned we set our state to `Thinking` and send back the sticks to the table. Since we mustn't create aliases to our `Sticks`, we first use a destructive read to get the `iso` in a local variable we can consume. Once the sticks are sent, we can go back to our `apply()`.
 ```pony
   be returnSticks() =>
     _env.out.print("Return sticks "+number.string())
@@ -167,4 +167,3 @@ When the sticks are returned we set our state to `Thinking` and send back the st
     let s2 = _sticksOwn2 = None; _table.realeaseStick(consume s2)
     this()
 ```
-
