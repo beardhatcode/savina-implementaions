@@ -27,15 +27,14 @@ actor Table
       _sticks.push( Stick(i) )
     end
 
-  be takeStick(num: USize, who:Philosopher,number:USize)=>
+  be takeStick(num: USize, who:Philosopher)=>
     try
       who.stick(num, _sticks.update(num,None)?)
     else
-      who.stick(num, None.create())
+      who.stick(num, None)
     end
-    false
 
-  be realeaseStick(stick:(Stick iso | None), x:Philosopher) =>
+  be realeaseStick(stick:(Stick| None)) =>
     try
       match (consume stick)
       | let s:Stick iso => _sticks.update(s.id(),consume s)?
@@ -102,16 +101,16 @@ actor Philosopher
   be returnSticks() =>
     _env.out.print("Return sticks "+number.string())
     state = Thinking
-    let s1 = _sticksOwn1 = None; _table.realeaseStick(consume s1, this)
-    let s2 = _sticksOwn2 = None; _table.realeaseStick(consume s2, this)
+    let s1 = _sticksOwn1 = None; _table.realeaseStick(consume s1)
+    let s2 = _sticksOwn2 = None; _table.realeaseStick(consume s2)
 
     this()
 
   be requestSticks()=>
     _env.out.print("Request sticks " + number.string()) 
     _sticksPending = (true,true)
-    _table.takeStick(_sticks._1,this,number)
-    _table.takeStick(_sticks._2,this,number)
+    _table.takeStick(_sticks._1,this)
+    _table.takeStick(_sticks._2,this)
 
   be apply() =>
     let l:Philosopher tag = this
@@ -142,11 +141,3 @@ actor Main
     for i in Range(0, number) do
       Philosopher(i,env, table, i, (i+1) % number)()
     end
-/*
-"""
-- promises
-- neerschrijven
-- E
-- Elexir
-"""
-*/
